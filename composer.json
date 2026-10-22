@@ -1,0 +1,68 @@
+{
+    "name": "guillaumetissier/resource-guard",
+    "description": "Protects an API with OAuth2 access tokens: offline JWT validation via JWKS, DPoP proofs (RFC 9449), impersonation rules and signed webhooks. Framework-agnostic core with Laravel, Symfony and PSR-15 adapters.",
+    "type": "library",
+    "keywords": [
+        "oauth2",
+        "dpop",
+        "rfc9449",
+        "jwt",
+        "jwks",
+        "resource-server",
+        "laravel",
+        "symfony",
+        "psr-15"
+    ],
+    "homepage": "https://github.com/guillaumetissier/resource-guard",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Guillaume Tissier"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/guillaumetissier/resource-guard/issues",
+        "source": "https://github.com/guillaumetissier/resource-guard"
+    },
+    "require": {
+        "php": ">=8.3",
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "web-token/jwt-library": "^4.0",
+        "psr/clock": "^1.0",
+        "psr/simple-cache": "^3.0",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/http-server-middleware": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.0",
+        "nyholm/psr7": "^1.8",
+        "spomky-labs/otphp": "^11.3"
+    },
+    "suggest": {
+        "illuminate/support": "To use the Laravel service provider and middleware",
+        "symfony/security-http": "To use the Symfony security authenticator"
+    },
+    "autoload": {
+        "psr-4": {
+            "GuillaumeTissier\\ResourceGuard\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "GuillaumeTissier\\ResourceGuard\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "GuillaumeTissier\\ResourceGuard\\Bridge\\Laravel\\ResourceGuardServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
