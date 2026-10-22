@@ -47,10 +47,7 @@ final readonly class AuthenticateWithAuthServer
                 $request->headers->all('dpop'),
             );
         } catch (AuthenticationFailed $e) {
-            return new JsonResponse($e->toArray(), $e->statusCode, [
-                'WWW-Authenticate' => $e->wwwAuthenticate(),
-                'Cache-Control' => 'no-store',
-            ]);
+            return new JsonResponse($e->toArray(), $e->statusCode, $e->responseHeaders());
         }
 
         if (\in_array(self::NO_IMPERSONATION, $requiredScopes, true)) {

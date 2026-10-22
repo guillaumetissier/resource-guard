@@ -32,6 +32,19 @@ jobs:
           dependency-versions: ${{ matrix.dependencies }}
       - run: vendor/bin/phpunit
 
+  functional:
+    name: Functional check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, openssl
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - run: composer check
+
   coding-standard:
     name: Coding standard
     runs-on: ubuntu-latest

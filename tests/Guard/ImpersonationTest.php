@@ -70,6 +70,7 @@ final class ImpersonationTest extends TestCase
         } catch (AuthenticationFailed $e) {
             self::assertSame(403, $e->statusCode);
             self::assertSame('impersonation_read_only', $e->errorCode);
+            self::assertArrayNotHasKey('WWW-Authenticate', $e->responseHeaders(), 'would make PHP answer 401');
         }
     }
 

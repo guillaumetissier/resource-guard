@@ -206,8 +206,38 @@ the [Auth Server](https://github.com/guillaumetissier/auth-server): a change to 
 ```bash
 composer install
 composer test      # PHPUnit
+composer check     # functional check over real HTTP (see below)
 composer cs        # checks the coding standard (PHP-CS-Fixer, Symfony rules), changes nothing
 composer fixcs     # fixes it
+```
+
+### Functional check, without the auth server
+
+`tools/` holds a stand-in issuer (signing keys, JWKS endpoint), a demo API protected by the PSR-15
+middleware, and a command-line client. Everything runs on PHP's built-in server, wired like a real
+deployment: JWKS fetched over HTTP and cached, replay store and webhook de-duplication in a cache shared
+by all processes.
+
+```bash
+php tools/rg-cli.php check     # starts fresh servers, runs 40 scenarios, prints PASS/FAIL, exit code 1 on failure
+```
+
+The scenarios cover valid DPoP calls, stolen tokens and proofs (other key, replay, other URL or method,
+missing `ath`, stale `iat`), Bearer downgrade, expired, unsigned, tampered and forged tokens, the JWKS
+cache and its refresh rate limit, client allow-list, scopes, read-only and full impersonation, domain
+rights (subdomains, parent, sibling, look-alike paths, entries above the user's domain, `:own`),
+issuer key rotation and signed webhooks (duplicates, wrong signature, replay).
+
+Manual testing:
+
+```bash
+php tools/rg-cli.php init      # issuer key, client DPoP key, config (in .rg-test/)
+php tools/rg-cli.php serve     # issuer on :8001, demo API on :8000 (another terminal)
+php tools/rg-cli.php token --scopes="profile vehicles.write" --dom=/a1/a10/ --acl="/a1/a10/+=*:r vehicle:w"
+php tools/rg-cli.php call GET "http://127.0.0.1:8000/api/vehicles?domain=/a1/a10/a100/"   # 200, level write
+php tools/rg-cli.php call GET "http://127.0.0.1:8000/api/vehicles?domain=/a1/a11/"        # 403, sibling domain
+php tools/rg-cli.php call GET http://127.0.0.1:8000/api/whoami --proof-key=other          # 401, stolen token
+php tools/rg-cli.php help      # every option
 ```
 
 ## License

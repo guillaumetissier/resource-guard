@@ -70,11 +70,13 @@
     "scripts": {
         "test": "phpunit",
         "cs": "php-cs-fixer fix --dry-run --diff",
-        "fixcs": "php-cs-fixer fix"
+        "fixcs": "php-cs-fixer fix",
+        "check": "php tools/rg-cli.php check"
     },
     "scripts-descriptions": {
         "test": "Runs the test suite",
         "cs": "Checks the coding standard (no change)",
-        "fixcs": "Fixes the coding standard"
+        "fixcs": "Fixes the coding standard",
+        "check": "Functional check: real HTTP servers, every scenario (no auth server needed)"
     }
 }

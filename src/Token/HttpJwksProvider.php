@@ -31,7 +31,7 @@ final class HttpJwksProvider implements JwksProviderInterface
 
     public function getKeySet(bool $forceRefresh = false): JWKSet
     {
-        if ($forceRefresh && time() - $this->lastForcedRefresh < $this->minSecondsBetweenForcedRefresh) {
+        if ($forceRefresh && time() - $this->lastForcedRefresh() < $this->minSecondsBetweenForcedRefresh) {
             $forceRefresh = false;
         }
 
@@ -44,7 +44,7 @@ final class HttpJwksProvider implements JwksProviderInterface
                 return $this->memo = JWKSet::createFromJson($cached);
             }
         } else {
-            $this->lastForcedRefresh = time();
+            $this->markForcedRefresh();
         }
 
         $response = $this->httpClient->sendRequest($this->requestFactory->createRequest('GET', $this->jwksUri));
@@ -57,6 +57,24 @@ final class HttpJwksProvider implements JwksProviderInterface
         $this->cache?->set($this->cacheKey(), $json, $this->cacheTtl);
 
         return $this->memo = $keySet;
+    }
+
+    /**
+     * Time of the last forced refresh, from this instance or, through the shared cache, from any
+     * other worker: under PHP-FPM the provider is rebuilt on every request, so an instance-only
+     * memory would let every forged token trigger a JWKS download.
+     */
+    private function lastForcedRefresh(): int
+    {
+        $shared = $this->cache?->get($this->cacheKey().'_forced');
+
+        return max($this->lastForcedRefresh, \is_int($shared) ? $shared : 0);
+    }
+
+    private function markForcedRefresh(): void
+    {
+        $this->lastForcedRefresh = time();
+        $this->cache?->set($this->cacheKey().'_forced', $this->lastForcedRefresh, $this->minSecondsBetweenForcedRefresh);
     }
 
     private function cacheKey(): string

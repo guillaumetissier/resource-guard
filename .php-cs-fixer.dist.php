@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 // Coding standard: composer cs (check) / composer fixcs (fix).
 $finder = (new PhpCsFixer\Finder())
-    ->in([__DIR__.'/src', __DIR__.'/tests', __DIR__.'/config']);
+    ->in([__DIR__.'/src', __DIR__.'/tests', __DIR__.'/config', __DIR__.'/tools']);
 
 return (new PhpCsFixer\Config())
     ->setRiskyAllowed(true)

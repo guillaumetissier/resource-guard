@@ -40,11 +40,13 @@ final readonly class ResourceGuardMiddleware implements MiddlewareInterface
                 $request->getHeader('DPoP'),
             );
         } catch (AuthenticationFailed $e) {
-            return $this->responseFactory->createResponse($e->statusCode)
-                ->withHeader('WWW-Authenticate', $e->wwwAuthenticate())
-                ->withHeader('Content-Type', 'application/json')
-                ->withHeader('Cache-Control', 'no-store')
+            $response = $this->responseFactory->createResponse($e->statusCode)
                 ->withBody($this->streamFactory->createStream((string) json_encode($e->toArray())));
+            foreach ($e->responseHeaders() as $name => $value) {
+                $response = $response->withHeader($name, $value);
+            }
+
+            return $response;
         }
 
         return $handler->handle($request->withAttribute(self::PRINCIPAL_ATTRIBUTE, $principal));
