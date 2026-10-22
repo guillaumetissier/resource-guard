@@ -43,7 +43,8 @@
     },
     "suggest": {
         "illuminate/support": "To use the Laravel service provider and middleware",
-        "symfony/security-http": "To use the Symfony security authenticator"
+        "symfony/security-http": "To use the Symfony security authenticator",
+        "ext-gmp": "Faster big-integer operations in web-token (EC keys, RSA-PSS). RS256 is fast without it."
     },
     "autoload": {
         "psr-4": {

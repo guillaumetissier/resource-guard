@@ -6,7 +6,6 @@ namespace GuillaumeTissier\ResourceGuard\Token;
 
 use GuillaumeTissier\ResourceGuard\Util\SystemClock;
 use Jose\Component\Core\AlgorithmManager;
-use Jose\Component\Signature\Algorithm\RS256;
 use Jose\Component\Signature\JWS;
 use Jose\Component\Signature\JWSVerifier;
 use Jose\Component\Signature\Serializer\CompactSerializer;
@@ -33,7 +32,7 @@ final class AccessTokenValidator
         $this->clock = $clock ?? new SystemClock();
         $this->serializer = new CompactSerializer();
         // The auth server signs with RS256 only; pinning the algorithm prevents alg-confusion attacks.
-        $this->verifier = new JWSVerifier(new AlgorithmManager([new RS256()]));
+        $this->verifier = new JWSVerifier(new AlgorithmManager([new OpenSslRS256()]));
     }
 
     /**
