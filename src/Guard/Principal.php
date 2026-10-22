@@ -82,8 +82,10 @@ final readonly class Principal
     }
 
     /**
-     * Example: $principal->can('vehicle', AccessLevel::Write, $vehicle->domainPath)
-     *          $principal->can('user', AccessLevel::Write, $profile->domainPath, ownerId: $profile->userId)
+     * True when the user holds at least $required on a resource of $resourceType in $domainPath.
+     *
+     *     $principal->can('vehicle', AccessLevel::Write, $vehicle->domainPath)
+     *     $principal->can('user', AccessLevel::Write, $profile->domainPath, ownerId: $profile->userId)
      */
     public function can(string $resourceType, AccessLevel $required, string $domainPath, ?string $ownerId = null): bool
     {

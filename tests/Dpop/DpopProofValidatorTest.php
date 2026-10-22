@@ -9,10 +9,10 @@ use GuillaumeTissier\ResourceGuard\Dpop\DpopException;
 use GuillaumeTissier\ResourceGuard\Dpop\DpopProofValidator;
 use GuillaumeTissier\ResourceGuard\Dpop\InMemoryReplayStore;
 use Jose\Component\Core\AlgorithmManager;
+use Jose\Component\KeyManagement\JWKFactory;
 use Jose\Component\Signature\Algorithm\HS256;
 use Jose\Component\Signature\JWSBuilder;
 use Jose\Component\Signature\Serializer\CompactSerializer;
-use Jose\Component\KeyManagement\JWKFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -97,7 +97,7 @@ final class DpopProofValidatorTest extends TestCase
         [$h, $p, $s] = explode('.', $proof);
         $payload = json_decode(base64_decode(strtr($p, '-_', '+/')), true);
         $payload['htu'] = 'https://evil.example.com/orders';
-        $forged = $h.'.'.rtrim(strtr(base64_encode((string) json_encode($payload, JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=').'.'.$s;
+        $forged = $h.'.'.rtrim(strtr(base64_encode((string) json_encode($payload, \JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=').'.'.$s;
 
         $this->expectExceptionMessage('invalid proof signature');
         $this->validator->validate($forged, 'POST', 'https://evil.example.com/orders');

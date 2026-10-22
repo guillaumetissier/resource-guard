@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Tests\Support;
 
+use GuillaumeTissier\ResourceGuard\Token\OpenSslRS256;
 use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Core\JWK;
 use Jose\Component\Core\JWKSet;
 use Jose\Component\KeyManagement\JWKFactory;
-use GuillaumeTissier\ResourceGuard\Token\OpenSslRS256;
 use Jose\Component\Signature\JWSBuilder;
 use Jose\Component\Signature\Serializer\CompactSerializer;
 

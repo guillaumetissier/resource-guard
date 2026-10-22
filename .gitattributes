@@ -1,0 +1,8 @@
+# Keep the Composer dist archive small: only src/, config/ and the docs are installed.
+/tests              export-ignore
+/phpunit.xml.dist   export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.github          export-ignore
+/CHANGELOG.md     export-ignore
+/.php-cs-fixer.dist.php export-ignore

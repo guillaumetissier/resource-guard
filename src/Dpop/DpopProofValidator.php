@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Dpop;
 
-use DateMalformedStringException;
-use GuillaumeTissier\ResourceGuard\Token\OpenSslRS256;
 use GuillaumeTissier\ResourceGuard\Util\SystemClock;
 use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Core\JWK;
@@ -27,12 +25,12 @@ use Psr\Clock\ClockInterface;
 final class DpopProofValidator
 {
     /** Asymmetric algorithms only: "none" and HMAC are never acceptable for DPoP. */
-    public const array SUPPORTED_ALGORITHMS = ['ES256', 'ES384', 'RS256', 'PS256', 'EdDSA'];
+    public const SUPPORTED_ALGORITHMS = ['ES256', 'ES384', 'RS256', 'PS256', 'EdDSA'];
 
     /** JWK members that only exist on private keys. */
-    private const array PRIVATE_KEY_MEMBERS = ['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k'];
+    private const PRIVATE_KEY_MEMBERS = ['d', 'p', 'q', 'dp', 'dq', 'qi', 'oth', 'k'];
 
-    private const int MAX_PROOF_LENGTH = 8192;
+    private const MAX_PROOF_LENGTH = 8192;
 
     private readonly JWSVerifier $verifier;
     private readonly CompactSerializer $serializer;
@@ -53,21 +51,21 @@ final class DpopProofValidator
         $this->verifier = new JWSVerifier(new AlgorithmManager([
             new ES256(),
             new ES384(),
-            new OpenSslRS256(),
+            new \GuillaumeTissier\ResourceGuard\Token\OpenSslRS256(),
             new PS256(),
             new EdDSA(),
         ]));
     }
 
     /**
-     * @param string      $proof          the raw value of the "DPoP" HTTP header
-     * @param string      $httpMethod     method of the request carrying the proof
-     * @param string      $httpUri        absolute URI of the request carrying the proof
-     * @param string|null $accessToken    when the proof accompanies an access token: checks the "ath" claim
-     * @param string|null $expectedJkt    when the token is bound to a key: the proof must be signed by that key
-     * @param string|null $expectedNonce  when the server issued a DPoP-Nonce
+     * @param string      $proof         the raw value of the "DPoP" HTTP header
+     * @param string      $httpMethod    method of the request carrying the proof
+     * @param string      $httpUri       absolute URI of the request carrying the proof
+     * @param string|null $accessToken   when the proof accompanies an access token: checks the "ath" claim
+     * @param string|null $expectedJkt   when the token is bound to a key: the proof must be signed by that key
+     * @param string|null $expectedNonce when the server issued a DPoP-Nonce
      *
-     * @throws DpopException|DateMalformedStringException
+     * @throws DpopException
      */
     public function validate(
         string $proof,

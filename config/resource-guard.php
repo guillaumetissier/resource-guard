@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 // Laravel configuration. Publish with:
 //   php artisan vendor:publish --tag=resource-guard-config
 
