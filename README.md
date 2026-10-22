@@ -209,6 +209,7 @@ composer test      # PHPUnit
 composer check     # functional check over real HTTP (see below)
 composer cs        # checks the coding standard (PHP-CS-Fixer, Symfony rules), changes nothing
 composer fixcs     # fixes it
+composer stan      # static analysis (PHPStan, level max, src + tests + tools)
 ```
 
 ### Functional check, without the auth server

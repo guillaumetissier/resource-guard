@@ -58,15 +58,12 @@ final class AuthenticationFailed extends \RuntimeException
         if ($this->dpopChallenge) {
             $params[] = \sprintf('algs="%s"', implode(' ', DpopProofValidator::SUPPORTED_ALGORITHMS));
 
-            return 'DPoP'.([] !== $params ? ' '.implode(', ', $params) : '');
+            return 'DPoP '.implode(', ', $params);
         }
 
         return 'Bearer'.([] !== $params ? ' '.implode(', ', $params) : '');
     }
 
-    /**
-     * @return array{error: string, error_description: string}
-     */
     /**
      * Headers of the error response. WWW-Authenticate only on 401: a 403 needs none, and PHP's
      * header() turns any response carrying WWW-Authenticate into a 401.
@@ -83,6 +80,9 @@ final class AuthenticationFailed extends \RuntimeException
         return $headers;
     }
 
+    /**
+     * @return array{error: string, error_description: string}
+     */
     public function toArray(): array
     {
         return [

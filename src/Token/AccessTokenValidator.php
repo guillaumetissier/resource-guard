@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Token;
 
+use GuillaumeTissier\ResourceGuard\Util\Json;
 use GuillaumeTissier\ResourceGuard\Util\SystemClock;
 use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Signature\JWS;
@@ -54,8 +55,8 @@ final class AccessTokenValidator
             throw InvalidTokenException::because('invalid token signature');
         }
 
-        $claims = json_decode((string) $jws->getPayload(), true);
-        if (!\is_array($claims)) {
+        $claims = Json::object(json_decode((string) $jws->getPayload(), true));
+        if (null === $claims) {
             throw InvalidTokenException::because('malformed token payload');
         }
 
@@ -88,7 +89,7 @@ final class AccessTokenValidator
         $scopes = $claims['scopes'] ?? [];
         $scopes = \is_array($scopes) ? array_values(array_filter($scopes, 'is_string')) : [];
 
-        $jkt = $claims['cnf']['jkt'] ?? null;
+        $jkt = Json::object($claims['cnf'] ?? null)['jkt'] ?? null;
 
         return new AccessToken(
             id: $jti,

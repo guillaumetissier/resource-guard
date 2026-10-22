@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Webhook;
 
+use GuillaumeTissier\ResourceGuard\Util\Json;
+
 /**
  * A verified event received from the auth server.
  */
@@ -56,7 +58,7 @@ final readonly class WebhookEvent
             throw new \InvalidArgumentException('Malformed webhook payload');
         }
 
-        return new self($d['id'], $d['type'], new \DateTimeImmutable($d['occurred_at']), \is_array($d['data'] ?? null) ? $d['data'] : []);
+        return new self($d['id'], $d['type'], new \DateTimeImmutable($d['occurred_at']), Json::object($d['data'] ?? null) ?? []);
     }
 
     public function toJson(): string

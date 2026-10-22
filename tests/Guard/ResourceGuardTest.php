@@ -107,6 +107,9 @@ final class ResourceGuardTest extends TestCase
         self::assertSame('DPoP algs="ES256 ES384 RS256 PS256 EdDSA"', $e->wwwAuthenticate());
     }
 
+    /**
+     * @param list<string> $allowedClients
+     */
     private function guard(bool $requireDpop = true, array $allowedClients = []): ResourceGuard
     {
         return new ResourceGuard(
@@ -116,6 +119,9 @@ final class ResourceGuardTest extends TestCase
         );
     }
 
+    /**
+     * @param array<string, mixed> $overrides
+     */
     private function boundToken(array $overrides = []): string
     {
         return $this->tokens->issue(['cnf' => ['jkt' => $this->client->thumbprint()]] + $overrides);

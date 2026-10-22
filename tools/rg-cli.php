@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 use GuillaumeTissier\ResourceGuard\Client\DpopProofFactory;
 use GuillaumeTissier\ResourceGuard\Token\OpenSslRS256;
+use GuillaumeTissier\ResourceGuard\Util\Json;
 use GuillaumeTissier\ResourceGuard\Webhook\WebhookSignature;
 use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Core\JWK;
@@ -24,8 +25,10 @@ use Jose\Component\KeyManagement\JWKFactory;
 use Jose\Component\Signature\JWSBuilder;
 use Jose\Component\Signature\Serializer\CompactSerializer;
 
+use function GuillaumeTissier\ResourceGuard\Tools\obj;
 use function GuillaumeTissier\ResourceGuard\Tools\readJson;
 use function GuillaumeTissier\ResourceGuard\Tools\state;
+use function GuillaumeTissier\ResourceGuard\Tools\str;
 use function GuillaumeTissier\ResourceGuard\Tools\writeJson;
 
 require __DIR__.'/bootstrap.php';
@@ -46,8 +49,8 @@ function parseArgs(array $argv): array
     $opts = [];
     foreach ($argv as $arg) {
         if (str_starts_with($arg, '--')) {
-            [$name, $value] = array_pad(explode('=', substr($arg, 2), 2), 2, true);
-            $opts[$name] = $value;
+            $pair = explode('=', substr($arg, 2), 2);
+            $opts[$pair[0]] = $pair[1] ?? true;
         } else {
             $args[] = $arg;
         }
@@ -82,12 +85,12 @@ function init(string $issuerUrl = DEFAULT_ISSUER): void
 
 function client(): DpopProofFactory
 {
-    $client = readJson('client.json');
-    if (!isset($client['key'])) {
+    $key = obj(readJson('client.json'), 'key');
+    if ([] === $key) {
         throw new RuntimeException('Run "php tools/rg-cli.php init" first.');
     }
 
-    return new DpopProofFactory(new JWK($client['key']));
+    return new DpopProofFactory(new JWK($key));
 }
 
 /**
@@ -131,7 +134,7 @@ function issueToken(array $o): string
         return b64('{"alg":"none","typ":"JWT"}').'.'.b64((string) json_encode($claims)).'.';
     }
 
-    $key = isset($o['forged']) ? newRsaKey() : new JWK(readJson('issuer.json')['key']);
+    $key = isset($o['forged']) ? newRsaKey() : new JWK(obj(readJson('issuer.json'), 'key'));
     $jws = (new JWSBuilder(new AlgorithmManager([new OpenSslRS256()])))
         ->create()
         ->withPayload((string) json_encode($claims))
@@ -163,14 +166,14 @@ function proof(string $method, string $url, ?string $token, array $o = []): stri
 /**
  * @param list<string> $headers
  *
- * @return array{int, array<string, string>, mixed}
+ * @return array{int, array<string, string>, array<string, mixed>, string} status, headers, JSON object (or []), raw body
  */
 function http(string $method, string $url, array $headers = [], ?string $body = null): array
 {
     $responseHeaders = [];
     $ch = curl_init($url);
     curl_setopt_array($ch, [
-        \CURLOPT_CUSTOMREQUEST => $method,
+        \CURLOPT_CUSTOMREQUEST => $method ?: 'GET',
         \CURLOPT_RETURNTRANSFER => true,
         \CURLOPT_HTTPHEADER => $headers,
         \CURLOPT_TIMEOUT => 15,
@@ -190,15 +193,15 @@ function http(string $method, string $url, array $headers = [], ?string $body = 
     if (false === $content) {
         throw new RuntimeException(sprintf('%s %s: %s', $method, $url, curl_error($ch)));
     }
-    $decoded = json_decode((string) $content, true);
+    $content = (string) $content;
 
-    return [(int) curl_getinfo($ch, \CURLINFO_RESPONSE_CODE), $responseHeaders, $decoded ?? $content];
+    return [(int) curl_getinfo($ch, \CURLINFO_RESPONSE_CODE), $responseHeaders, Json::object(json_decode($content, true)) ?? [], $content];
 }
 
 /**
  * @param array<string, string|true> $o
  *
- * @return array{int, array<string, string>, mixed}
+ * @return array{int, array<string, string>, array<string, mixed>, string}
  */
 function callApi(string $method, string $url, ?string $token, array $o = []): array
 {
@@ -216,7 +219,7 @@ function callApi(string $method, string $url, ?string $token, array $o = []): ar
 /**
  * @param array<string, string|true> $o
  *
- * @return array{int, array<string, string>, mixed}
+ * @return array{int, array<string, string>, array<string, mixed>, string}
  */
 function sendWebhook(string $apiUrl, string $type, array $o = []): array
 {
@@ -226,7 +229,7 @@ function sendWebhook(string $apiUrl, string $type, array $o = []): array
         'occurred_at' => date(\DATE_ATOM),
         'data' => ['user_id' => (string) ($o['user'] ?? '42')],
     ]);
-    $secret = isset($o['bad-signature']) ? str_repeat('x', 64) : readJson('config.json')['webhook_secret'];
+    $secret = isset($o['bad-signature']) ? str_repeat('x', 64) : str(readJson('config.json'), 'webhook_secret');
     $timestamp = isset($o['old']) ? time() - 3600 : time();
 
     return http('POST', $apiUrl.'/webhook', [
@@ -244,7 +247,11 @@ function startServers(int $apiPort, int $issuerPort, bool $quiet): array
     $spec = $quiet ? [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']] : [];
     $processes = [];
     foreach ([[$issuerPort, 'issuer.php'], [$apiPort, 'demo-api.php']] as [$port, $script]) {
-        $processes[] = proc_open([\PHP_BINARY, '-S', '127.0.0.1:'.$port, __DIR__.'/'.$script], $spec, $pipes, null, $env);
+        $process = proc_open([\PHP_BINARY, '-S', '127.0.0.1:'.$port, __DIR__.'/'.$script], $spec, $pipes, null, $env);
+        if (false === $process) {
+            throw new RuntimeException('Cannot start the PHP built-in server.');
+        }
+        $processes[] = $process;
     }
     for ($i = 0; $i < 50; ++$i) {
         $up = @file_get_contents('http://127.0.0.1:'.$apiPort.'/health') && @file_get_contents('http://127.0.0.1:'.$issuerPort.'/.well-known/jwks.json');
@@ -259,13 +266,32 @@ function startServers(int $apiPort, int $issuerPort, bool $quiet): array
 function freePort(): int
 {
     $socket = stream_socket_server('tcp://127.0.0.1:0');
-    $port = (int) substr((string) stream_socket_get_name($socket, false), strrpos((string) stream_socket_get_name($socket, false), ':') + 1);
+    if (false === $socket) {
+        throw new RuntimeException('Cannot find a free port.');
+    }
+    $address = (string) stream_socket_get_name($socket, false);
     fclose($socket);
 
-    return $port;
+    return (int) substr($address, (int) strrpos($address, ':') + 1);
 }
 
 // ---------------------------------------------------------------- check
+
+/**
+ * @param array{int, array<string, string>, array<string, mixed>, string}    $response
+ * @param (callable(array<string, mixed>, array<string, string>): bool)|null $extra
+ *
+ * @return array{bool, string, string} passed, scenario, what was received
+ */
+function verdict(string $name, array $response, int $status, ?string $error = null, ?callable $extra = null): array
+{
+    [$code, $headers, $body] = $response;
+    $ok = $code === $status
+        && (null === $error || str($body, 'error') === $error)
+        && (null === $extra || $extra($body, $headers));
+
+    return [$ok, $name, sprintf('%d %s', $code, str($body, 'error'))];
+}
 
 function check(): int
 {
@@ -278,82 +304,80 @@ function check(): int
     $processes = startServers($apiPort, $issuerPort, true);
 
     $results = [];
-    $expect = static function (string $name, array $response, int $status, ?string $error = null, ?callable $extra = null) use (&$results): void {
-        [$code, , $body] = $response;
-        $ok = $code === $status
-            && (null === $error || (is_array($body) && ($body['error'] ?? null) === $error))
-            && (null === $extra || $extra($body, $response[1]));
-        $results[] = [$ok, $name, sprintf('%d %s', $code, is_array($body) ? ($body['error'] ?? '') : '')];
+    $none = [200, [], [], ''];
+    $fetches = static function (): int {
+        $count = readJson('issuer-stats.json')['jwks_fetches'] ?? 0;
+
+        return is_int($count) ? $count : 0;
     };
-    $fetches = static fn (): int => readJson('issuer-stats.json')['jwks_fetches'];
     $whoami = $api.'/api/whoami';
 
     try {
         // --- Authentication
-        $expect('No token: 401 with a DPoP challenge', callApi('GET', $whoami, null), 401, 'unauthorized',
-            static fn ($b, array $h): bool => str_starts_with($h['www-authenticate'] ?? '', 'DPoP'));
+        $results[] = verdict('No token: 401 with a DPoP challenge', callApi('GET', $whoami, null), 401, 'unauthorized',
+            static fn (array $b, array $h): bool => str_starts_with($h['www-authenticate'] ?? '', 'DPoP'));
         $token = issueToken([]);
-        $expect('DPoP-bound token + valid proof: accepted', callApi('GET', $whoami, $token), 200, null,
-            static fn ($b): bool => '42' === $b['user_id'] && true === $b['dpop']);
+        $results[] = verdict('DPoP-bound token + valid proof: accepted', callApi('GET', $whoami, $token), 200, null,
+            static fn (array $b): bool => '42' === $b['user_id'] && true === $b['dpop']);
         $before = $fetches();
         callApi('GET', $whoami, $token);
-        $expect('JWKS cached between requests', [200, [], null], 200, null, static fn (): bool => $fetches() === $before);
+        $results[] = verdict('JWKS cached between requests', $none, 200, null, static fn (): bool => $fetches() === $before);
 
         // --- DPoP attacks
-        $expect('DPoP-bound token sent as Bearer: refused', callApi('GET', $whoami, $token, ['bearer' => true, 'no-proof' => true]), 401, 'invalid_token');
-        $expect('Token without proof: refused', callApi('GET', $whoami, $token, ['no-proof' => true]), 401, 'invalid_dpop_proof');
-        $expect('Proof signed by another key (stolen token): refused', callApi('GET', $whoami, $token, ['proof-key' => 'other']), 401, 'invalid_dpop_proof');
+        $results[] = verdict('DPoP-bound token sent as Bearer: refused', callApi('GET', $whoami, $token, ['bearer' => true, 'no-proof' => true]), 401, 'invalid_token');
+        $results[] = verdict('Token without proof: refused', callApi('GET', $whoami, $token, ['no-proof' => true]), 401, 'invalid_dpop_proof');
+        $results[] = verdict('Proof signed by another key (stolen token): refused', callApi('GET', $whoami, $token, ['proof-key' => 'other']), 401, 'invalid_dpop_proof');
         $proof = proof('GET', $whoami, $token);
         callApi('GET', $whoami, $token, ['proof' => $proof]);
-        $expect('Replayed proof: refused', callApi('GET', $whoami, $token, ['proof' => $proof]), 401, 'invalid_dpop_proof');
-        $expect('Proof for another URL: refused', callApi('GET', $whoami, $token, ['proof-url' => $api.'/api/vehicles']), 401, 'invalid_dpop_proof');
-        $expect('Proof for another method: refused', callApi('GET', $whoami, $token, ['proof-method' => 'POST']), 401, 'invalid_dpop_proof');
-        $expect('Proof without the token hash (ath): refused', callApi('GET', $whoami, $token, ['no-ath' => true]), 401, 'invalid_dpop_proof');
-        $expect('Proof issued 10 minutes ago: refused', callApi('GET', $whoami, $token, ['proof-iat' => '-600']), 401, 'invalid_dpop_proof');
-        $expect('Plain Bearer token while DPoP is required: refused', callApi('GET', $whoami, issueToken(['bearer' => true]), ['bearer' => true, 'no-proof' => true]), 401);
+        $results[] = verdict('Replayed proof: refused', callApi('GET', $whoami, $token, ['proof' => $proof]), 401, 'invalid_dpop_proof');
+        $results[] = verdict('Proof for another URL: refused', callApi('GET', $whoami, $token, ['proof-url' => $api.'/api/vehicles']), 401, 'invalid_dpop_proof');
+        $results[] = verdict('Proof for another method: refused', callApi('GET', $whoami, $token, ['proof-method' => 'POST']), 401, 'invalid_dpop_proof');
+        $results[] = verdict('Proof without the token hash (ath): refused', callApi('GET', $whoami, $token, ['no-ath' => true]), 401, 'invalid_dpop_proof');
+        $results[] = verdict('Proof issued 10 minutes ago: refused', callApi('GET', $whoami, $token, ['proof-iat' => '-600']), 401, 'invalid_dpop_proof');
+        $results[] = verdict('Plain Bearer token while DPoP is required: refused', callApi('GET', $whoami, issueToken(['bearer' => true]), ['bearer' => true, 'no-proof' => true]), 401);
 
         // --- Token attacks
-        $expect('Expired token: refused', callApi('GET', $whoami, issueToken(['expired' => true])), 401, 'invalid_token');
-        $expect('Unsigned token (alg none): refused', callApi('GET', $whoami, issueToken(['alg-none' => true])), 401, 'invalid_token');
+        $results[] = verdict('Expired token: refused', callApi('GET', $whoami, issueToken(['expired' => true])), 401, 'invalid_token');
+        $results[] = verdict('Unsigned token (alg none): refused', callApi('GET', $whoami, issueToken(['alg-none' => true])), 401, 'invalid_token');
         $before = $fetches();
-        $expect('Token signed by an unknown key: refused', callApi('GET', $whoami, issueToken(['forged' => true])), 401, 'invalid_token');
+        $results[] = verdict('Token signed by an unknown key: refused', callApi('GET', $whoami, issueToken(['forged' => true])), 401, 'invalid_token');
         callApi('GET', $whoami, issueToken(['forged' => true]));
         callApi('GET', $whoami, issueToken(['forged' => true]));
-        $expect('Forged tokens trigger at most one JWKS refresh per minute', [200, [], null], 200, null,
+        $results[] = verdict('Forged tokens trigger at most one JWKS refresh per minute', $none, 200, null,
             static fn (): bool => $fetches() - $before <= 1);
-        $expect('Token issued to a client not allowed: refused', callApi('GET', $whoami, issueToken(['client' => 'other-app'])), 401, 'invalid_token');
+        $results[] = verdict('Token issued to a client not allowed: refused', callApi('GET', $whoami, issueToken(['client' => 'other-app'])), 401, 'invalid_token');
         $tampered = explode('.', $token);
-        $tampered[1] = b64((string) json_encode(['sub' => '1'] + json_decode(base64_decode(strtr($tampered[1], '-_', '+/')), true)));
-        $expect('Tampered payload: refused', callApi('GET', $whoami, implode('.', $tampered)), 401, 'invalid_token');
+        $tampered[1] = b64((string) json_encode(['sub' => '1'] + (Json::object(json_decode(base64_decode(strtr($tampered[1], '-_', '+/')), true)) ?? [])));
+        $results[] = verdict('Tampered payload: refused', callApi('GET', $whoami, implode('.', $tampered)), 401, 'invalid_token');
 
         // --- Scopes and impersonation
         $acl = '/a1/a10/+=*:r vehicle:w user:w:own';
         $writer = issueToken(['scopes' => 'profile vehicles.write', 'dom' => '/a1/a10/', 'acl' => $acl]);
-        $expect('Scope present: write allowed', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', $writer), 201);
-        $expect('Scope missing: write refused', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', issueToken(['dom' => '/a1/a10/', 'acl' => $acl])), 403, 'insufficient_scope');
+        $results[] = verdict('Scope present: write allowed', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', $writer), 201);
+        $results[] = verdict('Scope missing: write refused', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', issueToken(['dom' => '/a1/a10/', 'acl' => $acl])), 403, 'insufficient_scope');
         $readOnly = issueToken(['scopes' => 'profile vehicles.write', 'dom' => '/a1/a10/', 'acl' => $acl, 'act' => '7', 'mode' => 'read_only']);
-        $expect('Read-only impersonation: reads allowed, actor visible', callApi('GET', $whoami, $readOnly), 200, null,
-            static fn ($b): bool => '7' === $b['impersonated_by'] && true === $b['read_only']);
-        $expect('Read-only impersonation: writes refused', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', $readOnly), 403, 'impersonation_read_only');
+        $results[] = verdict('Read-only impersonation: reads allowed, actor visible', callApi('GET', $whoami, $readOnly), 200, null,
+            static fn (array $b): bool => '7' === $b['impersonated_by'] && true === $b['read_only']);
+        $results[] = verdict('Read-only impersonation: writes refused', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', $readOnly), 403, 'impersonation_read_only');
         $full = issueToken(['scopes' => 'profile vehicles.write', 'dom' => '/a1/a10/', 'acl' => $acl, 'act' => '7', 'mode' => 'full']);
-        $expect('Full impersonation: writes allowed, actor recorded', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', $full), 201, null,
-            static fn ($b): bool => '7' === $b['on_behalf_of']);
+        $results[] = verdict('Full impersonation: writes allowed, actor recorded', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/', $full), 201, null,
+            static fn (array $b): bool => '7' === $b['on_behalf_of']);
 
         // --- Domains and rights
-        $expect('Read in a subdomain (inherited): allowed', callApi('GET', $api.'/api/vehicles?domain=/a1/a10/a100/', $writer), 200, null,
-            static fn ($b): bool => 'write' === $b['level']);
-        $expect('Write in a subdomain (inherited): allowed', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/a101/', $writer), 201);
-        $expect('Parent domain: refused', callApi('GET', $api.'/api/vehicles?domain=/a1/', $writer), 403, 'forbidden');
-        $expect('Sibling domain: refused', callApi('GET', $api.'/api/vehicles?domain=/a1/a11/', $writer), 403, 'forbidden');
-        $expect('Look-alike path (/a1/a10x/): refused', callApi('GET', $api.'/api/vehicles?domain=/a1/a10x/', $writer), 403, 'forbidden');
+        $results[] = verdict('Read in a subdomain (inherited): allowed', callApi('GET', $api.'/api/vehicles?domain=/a1/a10/a100/', $writer), 200, null,
+            static fn (array $b): bool => 'write' === $b['level']);
+        $results[] = verdict('Write in a subdomain (inherited): allowed', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/a101/', $writer), 201);
+        $results[] = verdict('Parent domain: refused', callApi('GET', $api.'/api/vehicles?domain=/a1/', $writer), 403, 'forbidden');
+        $results[] = verdict('Sibling domain: refused', callApi('GET', $api.'/api/vehicles?domain=/a1/a11/', $writer), 403, 'forbidden');
+        $results[] = verdict('Look-alike path (/a1/a10x/): refused', callApi('GET', $api.'/api/vehicles?domain=/a1/a10x/', $writer), 403, 'forbidden');
         $narrow = issueToken(['scopes' => 'profile vehicles.write', 'dom' => '/a1/a10/', 'acl' => '/a1/a10/+=*:r;/a1/a10/a100/=vehicle:w']);
-        $expect('Grant limited to one subdomain: write there', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/a100/', $narrow), 201);
-        $expect('Grant limited to one subdomain: read only elsewhere', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/a101/', $narrow), 403, 'forbidden');
+        $results[] = verdict('Grant limited to one subdomain: write there', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/a100/', $narrow), 201);
+        $results[] = verdict('Grant limited to one subdomain: read only elsewhere', callApi('POST', $api.'/api/vehicles?domain=/a1/a10/a101/', $narrow), 403, 'forbidden');
         $sneaky = issueToken(['dom' => '/a1/a10/', 'acl' => '/a1/+=*:m']);
-        $expect('Entry above the user\'s domain in the token: ignored', callApi('GET', $api.'/api/vehicles?domain=/a1/a10/', $sneaky), 403, 'forbidden');
-        $expect('Own profile (user:w:own): update allowed', callApi('PUT', $api.'/api/profiles/42?domain=/a1/a10/', $writer), 200);
-        $expect('Someone else\'s profile: refused', callApi('PUT', $api.'/api/profiles/43?domain=/a1/a10/', $writer), 403, 'forbidden');
-        $expect('Token without rights: refused', callApi('GET', $api.'/api/vehicles?domain=/a1/a10/', issueToken([])), 403, 'forbidden');
+        $results[] = verdict('Entry above the user\'s domain in the token: ignored', callApi('GET', $api.'/api/vehicles?domain=/a1/a10/', $sneaky), 403, 'forbidden');
+        $results[] = verdict('Own profile (user:w:own): update allowed', callApi('PUT', $api.'/api/profiles/42?domain=/a1/a10/', $writer), 200);
+        $results[] = verdict('Someone else\'s profile: refused', callApi('PUT', $api.'/api/profiles/43?domain=/a1/a10/', $writer), 403, 'forbidden');
+        $results[] = verdict('Token without rights: refused', callApi('GET', $api.'/api/vehicles?domain=/a1/a10/', issueToken([])), 403, 'forbidden');
 
         // --- Key rotation
         $old = issueToken([]);
@@ -362,20 +386,20 @@ function check(): int
         foreach (glob($cacheDir.'/*') ?: [] as $file) {
             // Simulate the rate-limit window being over (a real rotation is rarer than once a minute).
             $data = unserialize((string) file_get_contents($file));
-            if (is_int($data[1] ?? null)) {
+            if (is_array($data) && is_int($data[1] ?? null)) {
                 unlink($file);
             }
         }
-        $expect('After key rotation, new tokens accepted (JWKS refreshed)', callApi('GET', $whoami, issueToken([])), 200);
-        $expect('After key rotation, tokens of the removed key refused', callApi('GET', $whoami, $old), 401, 'invalid_token');
+        $results[] = verdict('After key rotation, new tokens accepted (JWKS refreshed)', callApi('GET', $whoami, issueToken([])), 200);
+        $results[] = verdict('After key rotation, tokens of the removed key refused', callApi('GET', $whoami, $old), 401, 'invalid_token');
 
         // --- Webhooks
-        $expect('Signed webhook: accepted', sendWebhook($api, 'user.locked', ['id' => 'evt_1']), 202, null,
-            static fn ($b): bool => '42' === $b['user_id']);
-        $expect('Redelivered webhook: recognised as duplicate', sendWebhook($api, 'user.locked', ['id' => 'evt_1']), 200, null,
-            static fn ($b): bool => 'duplicate' === $b['status']);
-        $expect('Webhook with a wrong signature: refused', sendWebhook($api, 'user.locked', ['bad-signature' => true]), 400, 'invalid_signature');
-        $expect('Webhook signed an hour ago (replay): refused', sendWebhook($api, 'user.locked', ['old' => true]), 400, 'invalid_signature');
+        $results[] = verdict('Signed webhook: accepted', sendWebhook($api, 'user.locked', ['id' => 'evt_1']), 202, null,
+            static fn (array $b): bool => '42' === $b['user_id']);
+        $results[] = verdict('Redelivered webhook: recognised as duplicate', sendWebhook($api, 'user.locked', ['id' => 'evt_1']), 200, null,
+            static fn (array $b): bool => 'duplicate' === $b['status']);
+        $results[] = verdict('Webhook with a wrong signature: refused', sendWebhook($api, 'user.locked', ['bad-signature' => true]), 400, 'invalid_signature');
+        $results[] = verdict('Webhook signed an hour ago (replay): refused', sendWebhook($api, 'user.locked', ['old' => true]), 400, 'invalid_signature');
     } finally {
         foreach ($processes as $process) {
             proc_terminate($process);
@@ -594,11 +618,11 @@ try {
         case 'serve':
             echo 'Issuer on '.DEFAULT_ISSUER.', demo API on '.DEFAULT_API." (Ctrl+C to stop)\n";
             $processes = startServers(8000, 8001, false);
-            while (true) {
-                sleep(1);
+            while (0 === sleep(1)) {
+                // Until Ctrl+C, which also stops the two servers (same process group).
             }
+            break;
 
-            // no break
         case 'token':
             $token = issueToken($opts);
             writeJson('token.json', ['access_token' => $token]);
@@ -606,13 +630,13 @@ try {
             break;
 
         case 'proof':
-            echo proof(strtoupper($args[0] ?? 'GET'), $args[1] ?? DEFAULT_API.'/api/whoami', $opts['token'] ?? readJson('token.json')['access_token'] ?? null, $opts)."\n";
+            echo proof(strtoupper($args[0] ?? 'GET'), $args[1] ?? DEFAULT_API.'/api/whoami', is_string($opts['token'] ?? null) ? $opts['token'] : (str(readJson('token.json'), 'access_token') ?: null), $opts)."\n";
             break;
 
         case 'call':
-            $token = is_string($opts['token'] ?? null) ? $opts['token'] : (readJson('token.json')['access_token'] ?? null);
-            [$status, , $body] = callApi(strtoupper($args[0] ?? 'GET'), $args[1] ?? DEFAULT_API.'/api/whoami', isset($opts['anonymous']) ? null : $token, $opts);
-            echo $status."\n".(is_array($body) ? json_encode($body, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES) : $body)."\n";
+            $token = is_string($opts['token'] ?? null) ? $opts['token'] : (str(readJson('token.json'), 'access_token') ?: null);
+            [$status, , $body, $raw] = callApi(strtoupper($args[0] ?? 'GET'), $args[1] ?? DEFAULT_API.'/api/whoami', isset($opts['anonymous']) ? null : $token, $opts);
+            echo $status."\n".([] !== $body ? json_encode($body, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES) : $raw)."\n";
             break;
 
         case 'webhook':
@@ -626,7 +650,7 @@ try {
             break;
 
         case 'decode':
-            $token = $args[0] ?? readJson('token.json')['access_token'] ?? '';
+            $token = $args[0] ?? str(readJson('token.json'), 'access_token');
             [$h, $p] = array_pad(explode('.', $token), 2, '');
             $dec = static fn (string $part): mixed => json_decode((string) base64_decode(strtr($part, '-_', '+/')), true);
             echo json_encode(['header' => $dec($h), 'claims' => $dec($p)], \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES)."\n";

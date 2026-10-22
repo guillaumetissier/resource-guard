@@ -13,6 +13,7 @@ use GuillaumeTissier\ResourceGuard\Token\JwksProviderInterface;
 use GuillaumeTissier\ResourceGuard\Token\StaticJwksProvider;
 use GuillaumeTissier\ResourceGuard\Webhook\WebhookSignature;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
+use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
@@ -30,45 +31,49 @@ final class ResourceGuardServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../../../config/resource-guard.php', 'resource-guard');
 
-        $this->app->singleton(JwksProviderInterface::class, static function (Application $app): JwksProviderInterface {
-            $config = $app['config']['resource-guard'];
+        $this->app->singleton(Settings::class, static fn (Application $app): Settings => Settings::fromConfig($app->make(Config::class)));
 
-            if (!empty($config['public_key_path'])) {
-                return StaticJwksProvider::fromPublicKeyFile($config['public_key_path']);
+        $this->app->singleton(JwksProviderInterface::class, static function (Application $app): JwksProviderInterface {
+            $settings = $app->make(Settings::class);
+            if (null !== $settings->publicKeyPath) {
+                return StaticJwksProvider::fromPublicKeyFile($settings->publicKeyPath);
+            }
+            if (null === $settings->jwksUri) {
+                throw new \LogicException('Set resource-guard.jwks_uri (AUTH_SERVER_JWKS_URI) or resource-guard.public_key_path.');
             }
 
             // Guzzle ships with every Laravel application and implements PSR-18 / PSR-17.
             return new HttpJwksProvider(
-                $config['jwks_uri'],
+                $settings->jwksUri,
                 new \GuzzleHttp\Client(['timeout' => 5]),
                 new \GuzzleHttp\Psr7\HttpFactory(),
-                $app->make(CacheFactory::class)->store($config['cache_store']),
+                $app->make(CacheFactory::class)->store($settings->cacheStore),
             );
         });
 
-        $this->app->singleton(AccessTokenValidator::class, static fn (Application $app) => new AccessTokenValidator(
+        $this->app->singleton(AccessTokenValidator::class, static fn (Application $app): AccessTokenValidator => new AccessTokenValidator(
             $app->make(JwksProviderInterface::class),
-            array_values($app['config']['resource-guard.allowed_clients']),
+            $app->make(Settings::class)->allowedClients,
             null,
-            (int) $app['config']['resource-guard.leeway'],
+            $app->make(Settings::class)->leeway,
         ));
 
-        $this->app->singleton(DpopProofValidator::class, static fn (Application $app) => new DpopProofValidator(
-            new Psr16ReplayStore($app->make(CacheFactory::class)->store($app['config']['resource-guard.cache_store'])),
+        $this->app->singleton(DpopProofValidator::class, static fn (Application $app): DpopProofValidator => new DpopProofValidator(
+            new Psr16ReplayStore($app->make(CacheFactory::class)->store($app->make(Settings::class)->cacheStore)),
             null,
-            (int) $app['config']['resource-guard.dpop_max_age'],
-            (int) $app['config']['resource-guard.leeway'],
+            $app->make(Settings::class)->dpopMaxAge,
+            $app->make(Settings::class)->leeway,
         ));
 
-        $this->app->singleton(ResourceGuard::class, static fn (Application $app) => new ResourceGuard(
+        $this->app->singleton(ResourceGuard::class, static fn (Application $app): ResourceGuard => new ResourceGuard(
             $app->make(AccessTokenValidator::class),
             $app->make(DpopProofValidator::class),
-            (bool) $app['config']['resource-guard.require_dpop'],
+            $app->make(Settings::class)->requireDpop,
         ));
 
-        $this->app->singleton(WebhookSignature::class, static fn (Application $app) => new WebhookSignature(
-            (string) $app['config']['resource-guard.webhook.secret'],
-            (int) $app['config']['resource-guard.webhook.tolerance'],
+        $this->app->singleton(WebhookSignature::class, static fn (Application $app): WebhookSignature => new WebhookSignature(
+            $app->make(Settings::class)->webhookSecret,
+            $app->make(Settings::class)->webhookTolerance,
         ));
     }
 
@@ -80,8 +85,10 @@ final class ResourceGuardServiceProvider extends ServiceProvider
 
         $router->aliasMiddleware('auth.oauth', AuthenticateWithAuthServer::class);
 
-        $path = $this->app['config']['resource-guard.webhook.path'];
-        if (\is_string($path) && '' !== $path && !$this->app->routesAreCached()) {
+        $path = $this->app->make(Settings::class)->webhookPath;
+        // routesAreCached() belongs to the full application, not to the Application contract.
+        $routesCached = method_exists($this->app, 'routesAreCached') && $this->app->routesAreCached();
+        if (null !== $path && !$routesCached) {
             $router->post($path, WebhookController::class)->name('resource-guard.webhook');
         }
     }

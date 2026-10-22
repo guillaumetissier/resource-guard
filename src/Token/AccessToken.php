@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Token;
 
+use GuillaumeTissier\ResourceGuard\Util\Json;
+
 /**
  * A verified access token issued by the auth server.
  */
@@ -40,7 +42,7 @@ final readonly class AccessToken
      */
     public function actorId(): ?string
     {
-        $actor = $this->claims['act']['sub'] ?? null;
+        $actor = Json::object($this->claims['act'] ?? null)['sub'] ?? null;
 
         return \is_string($actor) && '' !== $actor ? $actor : null;
     }

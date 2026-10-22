@@ -43,7 +43,7 @@ final class ResourceGuardAuthenticator extends AbstractAuthenticator implements 
     {
     }
 
-    public function supports(Request $request): ?bool
+    public function supports(Request $request): bool
     {
         return $request->headers->has('Authorization');
     }
@@ -55,7 +55,7 @@ final class ResourceGuardAuthenticator extends AbstractAuthenticator implements 
                 $request->getMethod(),
                 $request->getSchemeAndHttpHost().$request->getBaseUrl().$request->getPathInfo(),
                 $request->headers->get('Authorization'),
-                $request->headers->all('dpop'),
+                array_values(array_filter($request->headers->all('dpop'), \is_string(...))),
             );
         } catch (AuthenticationFailed $e) {
             $this->lastFailure = $e;
@@ -84,7 +84,7 @@ final class ResourceGuardAuthenticator extends AbstractAuthenticator implements 
         return null;
     }
 
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
         $failure = $this->lastFailure
             ?? AuthenticationFailed::invalidToken('Unknown user', true);

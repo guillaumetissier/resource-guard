@@ -8,6 +8,8 @@
 .phpunit.result.cache
 .php-cs-fixer.cache
 /coverage/
+# PHPStan cache
+/var/
 # State of the functional test tool (tools/rg-cli.php)
 /.rg-test/
 composer.local.json
