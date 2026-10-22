@@ -7,3 +7,4 @@
 /CHANGELOG.md     export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /tools             export-ignore
+/phpstan.dist.neon export-ignore

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Dpop;
 
+use GuillaumeTissier\ResourceGuard\Util\Json;
 use GuillaumeTissier\ResourceGuard\Util\SystemClock;
 use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Core\JWK;
@@ -93,8 +94,8 @@ final class DpopProofValidator
             throw DpopException::because('unsupported alg');
         }
 
-        $jwkValues = $header['jwk'] ?? null;
-        if (!\is_array($jwkValues) || !isset($jwkValues['kty']) || 'oct' === $jwkValues['kty']) {
+        $jwkValues = Json::object($header['jwk'] ?? null);
+        if (null === $jwkValues || !isset($jwkValues['kty']) || 'oct' === $jwkValues['kty']) {
             throw DpopException::because('jwk header must hold an asymmetric public key');
         }
         foreach (self::PRIVATE_KEY_MEMBERS as $member) {

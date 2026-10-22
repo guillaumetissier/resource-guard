@@ -8,7 +8,6 @@ use GuillaumeTissier\ResourceGuard\Guard\AuthenticationFailed;
 use GuillaumeTissier\ResourceGuard\Guard\Principal;
 use GuillaumeTissier\ResourceGuard\Guard\ResourceGuard;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -33,7 +32,7 @@ final readonly class AuthenticateWithAuthServer
     public function __construct(
         private ResourceGuard $guard,
         private AuthFactory $auth,
-        private Config $config,
+        private Settings $settings,
     ) {
     }
 
@@ -44,7 +43,7 @@ final readonly class AuthenticateWithAuthServer
                 $request->getMethod(),
                 $request->url(),
                 $request->headers->get('Authorization'),
-                $request->headers->all('dpop'),
+                array_values(array_filter($request->headers->all('dpop'), \is_string(...))),
             );
         } catch (AuthenticationFailed $e) {
             return new JsonResponse($e->toArray(), $e->statusCode, $e->responseHeaders());
@@ -73,14 +72,18 @@ final readonly class AuthenticateWithAuthServer
         $request->attributes->set(self::PRINCIPAL_ATTRIBUTE, $principal);
         $this->bindUser($principal);
 
-        return $next($request);
+        $response = $next($request);
+        if (!$response instanceof Response) {
+            throw new \UnexpectedValueException(\sprintf('The next middleware returned %s instead of a response.', get_debug_type($response)));
+        }
+
+        return $response;
     }
 
     private function bindUser(Principal $principal): void
     {
-        /** @var class-string<\Illuminate\Database\Eloquent\Model>|null $model */
-        $model = $this->config->get('resource-guard.user_model');
-        if (null === $model || '' === $model || !class_exists($model)) {
+        $model = $this->settings->userModel;
+        if (null === $model || !is_a($model, \Illuminate\Database\Eloquent\Model::class, true)) {
             return;
         }
 

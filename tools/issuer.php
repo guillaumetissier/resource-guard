@@ -8,25 +8,24 @@ declare(strict_types=1);
  * Keys are created by "php tools/rg-cli.php init" (and replaced by "rotate").
  */
 
+use function GuillaumeTissier\ResourceGuard\Tools\obj;
 use function GuillaumeTissier\ResourceGuard\Tools\readJson;
+use function GuillaumeTissier\ResourceGuard\Tools\str;
 use function GuillaumeTissier\ResourceGuard\Tools\writeJson;
 
 require __DIR__.'/bootstrap.php';
 
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', \PHP_URL_PATH);
+$path = parse_url(str($_SERVER, 'REQUEST_URI') ?: '/', \PHP_URL_PATH);
 header('Content-Type: application/json');
 
 if ('/.well-known/jwks.json' === $path) {
     // Counted so the checks can verify the resource server's caching and refresh rate limit.
-    $stats = readJson('issuer-stats.json', ['jwks_fetches' => 0]);
-    ++$stats['jwks_fetches'];
-    writeJson('issuer-stats.json', $stats);
+    $fetches = readJson('issuer-stats.json')['jwks_fetches'] ?? 0;
+    writeJson('issuer-stats.json', ['jwks_fetches' => (is_int($fetches) ? $fetches : 0) + 1]);
 
-    $issuer = readJson('issuer.json');
-    echo json_encode(['keys' => array_map(
-        static fn (array $jwk): array => array_intersect_key($jwk, array_flip(['kty', 'kid', 'use', 'alg', 'n', 'e'])),
-        isset($issuer['key']) ? [$issuer['key']] : [],
-    )]);
+    // Public members only.
+    $key = obj(readJson('issuer.json'), 'key');
+    echo json_encode(['keys' => [] === $key ? [] : [array_intersect_key($key, array_flip(['kty', 'kid', 'use', 'alg', 'n', 'e']))]]);
 
     return;
 }

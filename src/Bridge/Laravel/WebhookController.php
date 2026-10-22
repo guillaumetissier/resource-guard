@@ -7,7 +7,6 @@ namespace GuillaumeTissier\ResourceGuard\Bridge\Laravel;
 use GuillaumeTissier\ResourceGuard\Webhook\WebhookEvent;
 use GuillaumeTissier\ResourceGuard\Webhook\WebhookSignature;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
-use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -25,7 +24,7 @@ final readonly class WebhookController
         private WebhookSignature $signature,
         private Dispatcher $events,
         private CacheFactory $cache,
-        private Config $config,
+        private Settings $settings,
     ) {
     }
 
@@ -44,7 +43,7 @@ final readonly class WebhookController
         }
 
         // Deliveries can be retried: process each event id once.
-        $store = $this->cache->store($this->config->get('resource-guard.cache_store'));
+        $store = $this->cache->store($this->settings->cacheStore);
         if (!$store->add('resource_guard_webhook_'.$event->id, 1, 86400)) {
             return new Response('', 204);
         }

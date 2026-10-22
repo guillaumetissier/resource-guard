@@ -27,10 +27,12 @@ final class OpenSslRS256Test extends TestCase
     public function testPublicPemMatchesOpenSsl(): void
     {
         $resource = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => \OPENSSL_KEYTYPE_RSA]);
+        self::assertNotFalse($resource);
         $details = openssl_pkey_get_details($resource);
-        $jwk = JWKFactory::createFromKey($details['key']);
+        self::assertIsArray($details);
+        self::assertIsString($details['key']);
 
-        self::assertSame($details['key'], RsaPem::publicKey($jwk));
+        self::assertSame($details['key'], RsaPem::publicKey(JWKFactory::createFromKey($details['key'])));
     }
 
     public function testRejectsNonRsaKeys(): void

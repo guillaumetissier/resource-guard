@@ -21,7 +21,7 @@ final class HttpJwksProviderTest extends TestCase
 
     protected function setUp(): void
     {
-        $jwks = json_encode((new TokenFactory())->keySet());
+        $jwks = json_encode((new TokenFactory())->keySet(), \JSON_THROW_ON_ERROR);
         $this->client = new class($jwks, $this->fetches) implements ClientInterface {
             public function __construct(private string $jwks, private int &$fetches)
             {

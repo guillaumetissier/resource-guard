@@ -21,5 +21,8 @@ First public version.
   turned a 403 carrying it into a 401).
 - `HttpJwksProvider`: the forced-refresh rate limit is shared through the cache, so it holds under PHP-FPM.
 - Functional test tool (`tools/rg-cli.php check`): stand-in issuer, demo API, 40 end-to-end scenarios.
+- PHPStan at level max. Laravel configuration read through a typed `Settings` object: environment strings
+  (`"false"`, `"60"`, `"a,b"`) are normalized, `AUTH_SERVER_ALLOWED_CLIENTS` accepts a comma-separated string or an
+  array; null entries in `DPoP` headers are ignored.
 - RS256 tokens verified through OpenSSL with a byte-level JWK to PEM conversion, cached per key: no
   big-integer arithmetic, so verification costs well under a millisecond even without ext-gmp or ext-bcmath.

@@ -96,6 +96,7 @@ final class DpopProofValidatorTest extends TestCase
         $proof = $this->client->create('POST', self::URI);
         [$h, $p, $s] = explode('.', $proof);
         $payload = json_decode(base64_decode(strtr($p, '-_', '+/')), true);
+        self::assertIsArray($payload);
         $payload['htu'] = 'https://evil.example.com/orders';
         $forged = $h.'.'.rtrim(strtr(base64_encode((string) json_encode($payload, \JSON_UNESCAPED_SLASHES)), '+/', '-_'), '=').'.'.$s;
 

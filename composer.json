@@ -38,9 +38,17 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.95",
+        "guzzlehttp/guzzle": "^7.8",
+        "illuminate/contracts": "^11.0 || ^12.0",
+        "illuminate/database": "^11.0 || ^12.0",
+        "illuminate/http": "^11.0 || ^12.0",
+        "illuminate/routing": "^11.0 || ^12.0",
+        "illuminate/support": "^11.0 || ^12.0",
         "nyholm/psr7": "^1.8",
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.0",
-        "spomky-labs/otphp": "^11.3"
+        "spomky-labs/otphp": "^11.3",
+        "symfony/security-http": "^7.0"
     },
     "suggest": {
         "illuminate/support": "To use the Laravel service provider and middleware",
@@ -71,12 +79,14 @@
         "test": "phpunit",
         "cs": "php-cs-fixer fix --dry-run --diff",
         "fixcs": "php-cs-fixer fix",
+        "stan": "phpstan analyse --memory-limit=1G",
         "check": "php tools/rg-cli.php check"
     },
     "scripts-descriptions": {
         "test": "Runs the test suite",
         "cs": "Checks the coding standard (no change)",
         "fixcs": "Fixes the coding standard",
+        "stan": "Static analysis (PHPStan, level max)",
         "check": "Functional check: real HTTP servers, every scenario (no auth server needed)"
     }
 }

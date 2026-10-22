@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Tools;
 
+use GuillaumeTissier\ResourceGuard\Util\Json;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Client\NetworkExceptionInterface;
@@ -31,17 +32,31 @@ function state(string $file = ''): string
 }
 
 /**
- * @return array<string, mixed>
+ * @return array<string, mixed> empty when the file does not exist
  */
-function readJson(string $file, array $default = []): array
+function readJson(string $file): array
 {
     $path = state($file);
-    if (!is_file($path)) {
-        return $default;
-    }
-    $data = json_decode((string) file_get_contents($path), true);
 
-    return \is_array($data) ? $data : $default;
+    return is_file($path) ? Json::object(json_decode((string) file_get_contents($path), true)) ?? [] : [];
+}
+
+/**
+ * $data[$key] as a string ('' when absent or not a string).
+ */
+function str(mixed $data, string $key): string
+{
+    $value = \is_array($data) ? ($data[$key] ?? null) : null;
+
+    return \is_string($value) ? $value : '';
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function obj(mixed $data, string $key): array
+{
+    return Json::object(\is_array($data) ? ($data[$key] ?? null) : null) ?? [];
 }
 
 function writeJson(string $file, mixed $data): void
@@ -64,8 +79,12 @@ final class FileCache implements CacheInterface
         if (!is_file($file)) {
             return $default;
         }
-        [$expiresAt, $value] = unserialize((string) file_get_contents($file));
-        if (null !== $expiresAt && $expiresAt < time()) {
+        $entry = unserialize((string) file_get_contents($file));
+        if (!\is_array($entry) || 2 !== \count($entry)) {
+            return $default;
+        }
+        [$expiresAt, $value] = $entry;
+        if (\is_int($expiresAt) && $expiresAt < time()) {
             @unlink($file);
 
             return $default;
@@ -106,6 +125,9 @@ final class FileCache implements CacheInterface
         }
     }
 
+    /**
+     * @param iterable<string, mixed> $values
+     */
     public function setMultiple(iterable $values, \DateInterval|int|null $ttl = null): bool
     {
         foreach ($values as $key => $value) {
@@ -155,7 +177,7 @@ final class CurlClient implements ClientInterface
         $responseHeaders = [];
         $ch = curl_init((string) $request->getUri());
         curl_setopt_array($ch, [
-            \CURLOPT_CUSTOMREQUEST => $request->getMethod(),
+            \CURLOPT_CUSTOMREQUEST => $request->getMethod() ?: 'GET',
             \CURLOPT_RETURNTRANSFER => true,
             \CURLOPT_HTTPHEADER => $headers,
             \CURLOPT_TIMEOUT => 10,

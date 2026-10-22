@@ -37,7 +37,7 @@ final readonly class ResourceGuardMiddleware implements MiddlewareInterface
                 $request->getMethod(),
                 (string) $uri,
                 $request->getHeaderLine('Authorization') ?: null,
-                $request->getHeader('DPoP'),
+                array_values($request->getHeader('DPoP')),
             );
         } catch (AuthenticationFailed $e) {
             $response = $this->responseFactory->createResponse($e->statusCode)

@@ -12,11 +12,11 @@ return [
     // Alternative to jwks_uri: path to the auth server public key (PEM). Takes precedence when set.
     'public_key_path' => env('AUTH_SERVER_PUBLIC_KEY_PATH'),
 
-    // Only accept tokens issued to these OAuth clients (comma-separated). Empty = any client.
-    'allowed_clients' => array_filter(explode(',', (string) env('AUTH_SERVER_ALLOWED_CLIENTS', ''))),
+    // Only accept tokens issued to these OAuth clients (comma-separated string or array). Empty = any client.
+    'allowed_clients' => env('AUTH_SERVER_ALLOWED_CLIENTS', ''),
 
     // Reject plain Bearer tokens: every request must carry a DPoP-bound token and a valid proof.
-    'require_dpop' => (bool) env('AUTH_SERVER_REQUIRE_DPOP', true),
+    'require_dpop' => env('AUTH_SERVER_REQUIRE_DPOP', true),
 
     // Tolerated clock skew, and maximum age of a DPoP proof, in seconds.
     'leeway' => 30,

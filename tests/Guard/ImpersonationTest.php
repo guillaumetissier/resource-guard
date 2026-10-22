@@ -109,6 +109,9 @@ final class ImpersonationTest extends TestCase
         self::assertFalse($principal->can('vehicle', AccessLevel::Write, '/a1/a10/'));
     }
 
+    /**
+     * @param array<string, mixed> $claims
+     */
     private function token(array $claims): string
     {
         return $this->tokens->issue(['cnf' => ['jkt' => $this->client->thumbprint()]] + $claims);

@@ -68,7 +68,7 @@ final class AccessControlListTest extends TestCase
     {
         $claims = $this->acl()->toClaims();
 
-        self::assertSame('/a1/a10/', $claims['dom']);
+        self::assertSame('/a1/a10/', $claims['dom'] ?? null);
         self::assertEquals($this->acl(), AccessControlList::fromClaims($claims));
     }
 }

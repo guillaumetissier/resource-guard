@@ -38,7 +38,7 @@ final readonly class OpenSslRS256 implements SignatureAlgorithm
 
     public function sign(JWK $key, string $input): string
     {
-        if (!openssl_sign($input, $signature, RsaPem::privateKey($key), \OPENSSL_ALGO_SHA256)) {
+        if (!openssl_sign($input, $signature, RsaPem::privateKey($key), \OPENSSL_ALGO_SHA256) || !\is_string($signature)) {
             throw new \RuntimeException('RS256 signature failed: '.(string) openssl_error_string());
         }
 
