@@ -4,7 +4,7 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
-## [1.0.0] - unreleased
+## [0.1.0] - 2026-10-22
 
 First public version.
 
@@ -26,3 +26,6 @@ First public version.
   array; null entries in `DPoP` headers are ignored.
 - RS256 tokens verified through OpenSSL with a byte-level JWK to PEM conversion, cached per key: no
   big-integer arithmetic, so verification costs well under a millisecond even without ext-gmp or ext-bcmath.
+
+[Unreleased]: https://github.com/guillaumetissier/resource-guard/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/guillaumetissier/resource-guard/releases/tag/v0.1.0
