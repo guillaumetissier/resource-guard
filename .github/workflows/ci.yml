@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   tests:
-    name: PHP ${{ matrix.php }} (${{ matrix.dependencies }} dependencies)
+    name: PHP unit ${{ matrix.php }} (${{ matrix.dependencies }} dependencies)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
