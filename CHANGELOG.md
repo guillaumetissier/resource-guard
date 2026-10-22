@@ -17,3 +17,5 @@ First public version.
 - Access control: `AccessLevel` enum, `AccessExpression` (`*:w tire:r user:w:own @access:w`), `AccessControlList`
   built from the `dom` / `acl` claims, `DomainPath`; `Principal::can()`, `accessLevel()`, `domain()`, `acl()`.
 - `WebhookEvent::USER_ACCESS_CHANGED`.
+- RS256 tokens verified through OpenSSL with a byte-level JWK to PEM conversion, cached per key: no
+  big-integer arithmetic, so verification costs well under a millisecond even without ext-gmp or ext-bcmath.

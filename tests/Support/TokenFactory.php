@@ -8,7 +8,7 @@ use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Core\JWK;
 use Jose\Component\Core\JWKSet;
 use Jose\Component\KeyManagement\JWKFactory;
-use Jose\Component\Signature\Algorithm\RS256;
+use GuillaumeTissier\ResourceGuard\Token\OpenSslRS256;
 use Jose\Component\Signature\JWSBuilder;
 use Jose\Component\Signature\Serializer\CompactSerializer;
 
@@ -46,7 +46,7 @@ final class TokenFactory
         ], $overrides);
         $claims = array_filter($claims, static fn ($v) => null !== $v);
 
-        $jws = (new JWSBuilder(new AlgorithmManager([new RS256()])))
+        $jws = (new JWSBuilder(new AlgorithmManager([new OpenSslRS256()])))
             ->create()
             ->withPayload((string) json_encode($claims))
             ->addSignature($signingKey ?? $this->key, ['alg' => 'RS256', 'typ' => 'JWT'])

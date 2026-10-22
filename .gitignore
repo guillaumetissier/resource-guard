@@ -1,0 +1,20 @@
+# --- Dependencies ---
+# Libraries do not commit composer.lock: users resolve their own versions.
+/vendor/
+/composer.lock
+
+# --- Tests and tooling ---
+.phpunit.cache/
+.phpunit.result.cache
+.php-cs-fixer.cache
+/coverage/
+composer.local.json
+composer.local.lock
+
+# --- Editors and OS ---
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
