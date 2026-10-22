@@ -19,6 +19,11 @@ final readonly class WebhookEvent
     public const USER_TWO_FACTOR_POSTPONED = 'user.two_factor_postponed';
     public const USER_PASSWORD_CHANGED = 'user.password_changed';
     public const USER_ROLES_CHANGED = 'user.roles_changed';
+    /**
+     * The user's rights changed (grant added, changed or removed, domain changed, domain ownership changed).
+     * Takes effect in his next access token; data: change, domain, actor_id. Refetch or drop cached rights.
+     */
+    public const USER_ACCESS_CHANGED = 'user.access_changed';
     /** data: user_id (impersonated user), actor_id (administrator), mode, reason, expires_at, impersonation_id */
     public const IMPERSONATION_STARTED = 'impersonation.started';
     public const IMPERSONATION_ENDED = 'impersonation.ended';

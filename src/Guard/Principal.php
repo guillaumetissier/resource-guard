@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Guard;
 
+use GuillaumeTissier\ResourceGuard\Access\AccessControlList;
+use GuillaumeTissier\ResourceGuard\Access\AccessLevel;
 use GuillaumeTissier\ResourceGuard\Token\AccessToken;
 use GuillaumeTissier\ResourceGuard\Token\Impersonation;
 
@@ -49,5 +51,42 @@ final readonly class Principal
     public function isReadOnly(): bool
     {
         return Impersonation::MODE_READ_ONLY === $this->token->impersonationMode();
+    }
+
+    /**
+     * The user's rights by domain, from the "dom" and "acl" claims.
+     */
+    public function acl(): AccessControlList
+    {
+        return AccessControlList::fromClaims($this->token->claims);
+    }
+
+    /**
+     * Path of the user's domain ("/a1/a10/"), null when the user belongs to no domain.
+     */
+    public function domain(): ?string
+    {
+        return $this->acl()->userDomain;
+    }
+
+    /**
+     * Level the user has on a resource of $resourceType located in $domainPath.
+     * Pass the id of the resource's owner to apply ":own" rules (e.g. the user's own profile).
+     * During a read-only impersonation the level never exceeds READ.
+     */
+    public function accessLevel(string $resourceType, string $domainPath, ?string $ownerId = null): AccessLevel
+    {
+        $level = $this->acl()->levelFor($resourceType, $domainPath, null !== $ownerId && $ownerId === $this->userId);
+
+        return $this->isReadOnly() ? AccessLevel::min($level, AccessLevel::Read) : $level;
+    }
+
+    /**
+     * Example: $principal->can('vehicle', AccessLevel::Write, $vehicle->domainPath)
+     *          $principal->can('user', AccessLevel::Write, $profile->domainPath, ownerId: $profile->userId)
+     */
+    public function can(string $resourceType, AccessLevel $required, string $domainPath, ?string $ownerId = null): bool
+    {
+        return $this->accessLevel($resourceType, $domainPath, $ownerId)->includes($required);
     }
 }

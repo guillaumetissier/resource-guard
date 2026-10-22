@@ -6,6 +6,7 @@ Protects an API with the access tokens of [Auth Server](https://github.com/guill
 - validates the JWT access tokens offline, with the server's JWKS (RS256 only, expiry, audience allow-list);
 - validates DPoP proofs (RFC 9449): signature, `htm`, `htu`, `iat` window, `ath`, key binding (`cnf.jkt`), replay;
 - exposes who is calling, including impersonation details, and refuses writes during read-only impersonations;
+- checks the caller's rights per resource type and domain, from the `dom` / `acl` claims;
 - verifies the signed webhooks of the server.
 
 The core is framework-agnostic. Adapters are provided for **Laravel**, **Symfony** and **PSR-15**.
@@ -130,6 +131,46 @@ Without any framework, call `$guard->authenticate($method, $absoluteUri, $author
 it returns a `Principal` or throws `AuthenticationFailed`, which carries the HTTP status and the
 `WWW-Authenticate` header to send back.
 
+## Access control (domains and rights)
+
+When the server uses domains, tokens carry the user's domain and rights:
+
+```json
+"dom": "/a1/a10/",
+"acl": [["/a1/a10/", true, "*:r vehicle:w"], ["/a1/a10/a100/", false, "invoice:w"], ["/a1/a10/", true, "user:w:own"]]
+```
+
+Each entry: domain path, whether it extends to the subdomains, access expression. Check them with the
+domain path of the resource (your application knows where each resource belongs):
+
+```php
+use GuillaumeTissier\ResourceGuard\Access\AccessLevel;
+
+$principal->can('vehicle', AccessLevel::Write, '/a1/a10/a101/');                     // true: a10 and subdomains
+$principal->can('invoice', AccessLevel::Write, '/a1/a10/a101/');                     // false: a100 only
+$principal->can('vehicle', AccessLevel::Read, '/a1/a11/');                           // false: outside the user's domain
+$principal->can('user', AccessLevel::Write, '/a1/a10/', ownerId: $profile->userId);  // ":own" rules: his own profile
+$principal->accessLevel('vehicle', '/a1/a10/');                                      // AccessLevel::Write
+$principal->domain();                                                                // "/a1/a10/"
+```
+
+Rules of evaluation:
+
+| Expression | Meaning |
+|---|---|
+| `vehicle:r` | levels `-` none, `r` read, `w` write, `m` manage (`AccessLevel` enum); each includes the lower ones |
+| `*:w tire:r` | a named type beats `*`, whatever the order: everything writable, tires read-only |
+| `*:r invoice:-` | everything readable except invoices |
+| `user:r user:w:own` | `:own` applies to resources owned by the caller (`ownerId` = the token `sub`) |
+| `@impersonate:r` | reserved `@` types are never covered by `*` |
+
+- Several entries covering a domain: the highest level wins.
+- Nothing ever applies outside the user's domain subtree, even if an entry claims so (fail closed).
+- During a read-only impersonation, `accessLevel()` and `can()` never exceed READ.
+
+The same classes (`AccessExpression`, `AccessControlList`, `DomainPath`) work without a token, e.g. to
+validate expressions in your own tools.
+
 ## Behaviour
 
 | Request | Result |
@@ -157,7 +198,7 @@ $header = $dpop->create('GET', 'https://api.example.com/items', $accessToken);
 ## Compatibility
 
 The package follows [Semantic Versioning](https://semver.org/). The token claims it reads (`sub`, `aud`,
-`scopes`, `cnf.jkt`, `act`, `imp`, `imp_mode`) and the webhook format are a contract with
+`scopes`, `cnf.jkt`, `act`, `imp`, `imp_mode`, `dom`, `acl`), the access expression syntax and the webhook format are a contract with
 the [Auth Server](https://github.com/guillaumetissier/auth-server): a change to them is a major version.
 
 ## Tests

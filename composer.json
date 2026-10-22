@@ -1,6 +1,6 @@
 {
     "name": "guillaumetissier/resource-guard",
-    "description": "Protects an API with OAuth2 access tokens: offline JWT validation via JWKS, DPoP proofs (RFC 9449), impersonation rules and signed webhooks. Framework-agnostic core with Laravel, Symfony and PSR-15 adapters.",
+    "description": "Protects an API with OAuth2 access tokens: offline JWT validation via JWKS, DPoP proofs (RFC 9449), domain-scoped access rights, impersonation rules and signed webhooks. Framework-agnostic core with Laravel, Symfony and PSR-15 adapters.",
     "type": "library",
     "keywords": [
         "oauth2",
