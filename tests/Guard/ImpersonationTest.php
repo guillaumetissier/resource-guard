@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GuillaumeTissier\ResourceGuard\Tests\Guard;
 
+use GuillaumeTissier\ResourceGuard\Access\AccessLevel;
 use GuillaumeTissier\ResourceGuard\Client\DpopProofFactory;
 use GuillaumeTissier\ResourceGuard\Dpop\DpopProofValidator;
 use GuillaumeTissier\ResourceGuard\Dpop\InMemoryReplayStore;
@@ -84,6 +85,27 @@ final class ImpersonationTest extends TestCase
 
         self::assertTrue($principal->isImpersonated());
         self::assertFalse($principal->isReadOnly());
+    }
+
+    public function testPrincipalAccessChecks(): void
+    {
+        $principal = $this->call('GET', $this->token(['dom' => '/a1/a10/', 'acl' => [['/a1/a10/', true, '*:w user:w:own']]]));
+
+        self::assertSame('/a1/a10/', $principal->domain());
+        self::assertTrue($principal->can('vehicle', AccessLevel::Write, '/a1/a10/a100/'));
+        self::assertFalse($principal->can('vehicle', AccessLevel::Read, '/a1/a11/'));
+        self::assertTrue($principal->can('user', AccessLevel::Write, '/a1/a10/', ownerId: '42'));
+    }
+
+    public function testReadOnlyImpersonationCapsAccessAtRead(): void
+    {
+        $principal = $this->call('GET', $this->token([
+            'act' => ['sub' => '7'], 'imp' => 'imp-1', 'imp_mode' => Impersonation::MODE_READ_ONLY,
+            'dom' => '/a1/a10/', 'acl' => [['/a1/a10/', true, '*:m']],
+        ]));
+
+        self::assertSame(AccessLevel::Read, $principal->accessLevel('vehicle', '/a1/a10/'));
+        self::assertFalse($principal->can('vehicle', AccessLevel::Write, '/a1/a10/'));
     }
 
     private function token(array $claims): string

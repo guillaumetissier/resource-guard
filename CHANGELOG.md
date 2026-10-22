@@ -14,3 +14,6 @@ First public version.
 - Webhook signature verification (HMAC-SHA256) and event value object.
 - Adapters: Laravel (service provider, `auth.oauth` middleware, webhook route), Symfony (security authenticator, webhook controller), PSR-15 middleware.
 - `DpopProofFactory` for PHP clients and tests.
+- Access control: `AccessLevel` enum, `AccessExpression` (`*:w tire:r user:w:own @access:w`), `AccessControlList`
+  built from the `dom` / `acl` claims, `DomainPath`; `Principal::can()`, `accessLevel()`, `domain()`, `acl()`.
+- `WebhookEvent::USER_ACCESS_CHANGED`.
