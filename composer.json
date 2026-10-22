@@ -37,8 +37,9 @@
         "psr/http-server-middleware": "^1.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^12.0",
+        "friendsofphp/php-cs-fixer": "^3.95",
         "nyholm/psr7": "^1.8",
+        "phpunit/phpunit": "^12.0",
         "spomky-labs/otphp": "^11.3"
     },
     "suggest": {
@@ -65,5 +66,15 @@
     },
     "config": {
         "sort-packages": true
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs": "php-cs-fixer fix --dry-run --diff",
+        "fixcs": "php-cs-fixer fix"
+    },
+    "scripts-descriptions": {
+        "test": "Runs the test suite",
+        "cs": "Checks the coding standard (no change)",
+        "fixcs": "Fixes the coding standard"
     }
 }

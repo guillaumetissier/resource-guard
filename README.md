@@ -201,10 +201,13 @@ The package follows [Semantic Versioning](https://semver.org/). The token claims
 `scopes`, `cnf.jkt`, `act`, `imp`, `imp_mode`, `dom`, `acl`), the access expression syntax and the webhook format are a contract with
 the [Auth Server](https://github.com/guillaumetissier/auth-server): a change to them is a major version.
 
-## Tests
+## Development
 
 ```bash
-composer install && vendor/bin/phpunit
+composer install
+composer test      # PHPUnit
+composer cs        # checks the coding standard (PHP-CS-Fixer, Symfony rules), changes nothing
+composer fixcs     # fixes it
 ```
 
 ## License

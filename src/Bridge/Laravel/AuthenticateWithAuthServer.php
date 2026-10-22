@@ -7,7 +7,6 @@ namespace GuillaumeTissier\ResourceGuard\Bridge\Laravel;
 use GuillaumeTissier\ResourceGuard\Guard\AuthenticationFailed;
 use GuillaumeTissier\ResourceGuard\Guard\Principal;
 use GuillaumeTissier\ResourceGuard\Guard\ResourceGuard;
-use Closure;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Http\JsonResponse;
@@ -38,7 +37,7 @@ final readonly class AuthenticateWithAuthServer
     ) {
     }
 
-    public function handle(Request $request, Closure $next, string ...$requiredScopes): Response
+    public function handle(Request $request, \Closure $next, string ...$requiredScopes): Response
     {
         try {
             $principal = $this->guard->authenticate(

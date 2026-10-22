@@ -30,10 +30,10 @@ final readonly class ResourceGuard
     }
 
     /**
-     * @param string      $method              HTTP method of the request
-     * @param string      $uri                 absolute URI of the request (scheme://host/path)
-     * @param string|null $authorizationHeader raw "Authorization" header
-     * @param list<string> $dpopHeaders        every "DPoP" header value of the request
+     * @param string       $method              HTTP method of the request
+     * @param string       $uri                 absolute URI of the request (scheme://host/path)
+     * @param string|null  $authorizationHeader raw "Authorization" header
+     * @param list<string> $dpopHeaders         every "DPoP" header value of the request
      *
      * @throws AuthenticationFailed
      */
