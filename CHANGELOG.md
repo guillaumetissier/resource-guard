@@ -17,5 +17,9 @@ First public version.
 - Access control: `AccessLevel` enum, `AccessExpression` (`*:w tire:r user:w:own @access:w`), `AccessControlList`
   built from the `dom` / `acl` claims, `DomainPath`; `Principal::can()`, `accessLevel()`, `domain()`, `acl()`.
 - `WebhookEvent::USER_ACCESS_CHANGED`.
+- `AuthenticationFailed::responseHeaders()`; the adapters send `WWW-Authenticate` on 401 only (PHP's `header()`
+  turned a 403 carrying it into a 401).
+- `HttpJwksProvider`: the forced-refresh rate limit is shared through the cache, so it holds under PHP-FPM.
+- Functional test tool (`tools/rg-cli.php check`): stand-in issuer, demo API, 40 end-to-end scenarios.
 - RS256 tokens verified through OpenSSL with a byte-level JWK to PEM conversion, cached per key: no
   big-integer arithmetic, so verification costs well under a millisecond even without ext-gmp or ext-bcmath.

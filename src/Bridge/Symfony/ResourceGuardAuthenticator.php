@@ -107,9 +107,6 @@ final class ResourceGuardAuthenticator extends AbstractAuthenticator implements 
 
     private function toResponse(AuthenticationFailed $failure): Response
     {
-        return new JsonResponse($failure->toArray(), $failure->statusCode, [
-            'WWW-Authenticate' => $failure->wwwAuthenticate(),
-            'Cache-Control' => 'no-store',
-        ]);
+        return new JsonResponse($failure->toArray(), $failure->statusCode, $failure->responseHeaders());
     }
 }

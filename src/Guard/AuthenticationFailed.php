@@ -67,6 +67,22 @@ final class AuthenticationFailed extends \RuntimeException
     /**
      * @return array{error: string, error_description: string}
      */
+    /**
+     * Headers of the error response. WWW-Authenticate only on 401: a 403 needs none, and PHP's
+     * header() turns any response carrying WWW-Authenticate into a 401.
+     *
+     * @return array<string, string>
+     */
+    public function responseHeaders(): array
+    {
+        $headers = ['Content-Type' => 'application/json', 'Cache-Control' => 'no-store'];
+        if (401 === $this->statusCode) {
+            $headers['WWW-Authenticate'] = $this->wwwAuthenticate();
+        }
+
+        return $headers;
+    }
+
     public function toArray(): array
     {
         return [
