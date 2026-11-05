@@ -4,6 +4,19 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-05
+
+### Added
+- Facets in access expressions: `vehicle.pricing:w` grants a part of a resource. The most specific rule wins
+  (facet, then its type, then `*`), a facet right of level read or more also grants read on its type, and
+  facets take `-`, `r` or `w` only. `isWithin()` takes facets into account.
+- `Principal::deniedFacets()`: the facets of a type on which the caller lacks a level, before a partial update.
+- `AccessExpression::parentType()` and `AccessExpression::FACET_SEPARATOR`.
+
+### Changed
+- A dot in a type name now separates a type from its facet: resource types can no longer contain dots
+  (`a.b.c` and `*.x` are refused, `a.b` is the facet `b` of `a`).
+
 ## [0.1.0] - 2026-10-22
 
 First public version.
@@ -27,5 +40,6 @@ First public version.
 - RS256 tokens verified through OpenSSL with a byte-level JWK to PEM conversion, cached per key: no
   big-integer arithmetic, so verification costs well under a millisecond even without ext-gmp or ext-bcmath.
 
-[Unreleased]: https://github.com/guillaumetissier/resource-guard/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/guillaumetissier/resource-guard/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/guillaumetissier/resource-guard/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/guillaumetissier/resource-guard/releases/tag/v0.1.0

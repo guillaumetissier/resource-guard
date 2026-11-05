@@ -42,6 +42,20 @@ final class AccessExpressionTest extends TestCase
         yield 'reserved type granted explicitly' => ['*:m @impersonate:r', '@impersonate', false, AccessLevel::Read];
         yield 'case insensitive' => ['Vehicle:W', 'VEHICLE', false, AccessLevel::Write];
         yield 'commas allowed' => ['*:r,tire:-', 'tire', false, AccessLevel::None];
+        yield 'facet granted alone' => ['vehicle.pricing:w', 'vehicle.pricing', false, AccessLevel::Write];
+        yield 'facet right gives read on its type' => ['vehicle.pricing:w', 'vehicle', false, AccessLevel::Read];
+        yield 'facet right gives nothing on other facets' => ['vehicle.pricing:w', 'vehicle.media', false, AccessLevel::None];
+        yield 'type covers its facets' => ['vehicle:w', 'vehicle.pricing', false, AccessLevel::Write];
+        yield 'wildcard covers facets' => ['*:r', 'vehicle.pricing', false, AccessLevel::Read];
+        yield 'facet caps its type' => ['vehicle:w vehicle.pricing:r', 'vehicle.pricing', false, AccessLevel::Read];
+        yield 'facet capped, type unchanged' => ['vehicle:w vehicle.pricing:r', 'vehicle', false, AccessLevel::Write];
+        yield 'facet beyond its type' => ['vehicle:r vehicle.media:w', 'vehicle.media', false, AccessLevel::Write];
+        yield 'facet excluded' => ['*:w vehicle.pricing:-', 'vehicle.pricing', false, AccessLevel::None];
+        yield 'excluded facet gives no read' => ['vehicle.pricing:-', 'vehicle', false, AccessLevel::None];
+        yield 'type above a facet right' => ['vehicle:m vehicle.pricing:w', 'vehicle', false, AccessLevel::Manage];
+        yield 'own facet rule ignored for others' => ['vehicle.pricing:w:own', 'vehicle.pricing', false, AccessLevel::None];
+        yield 'own facet rule for own resource' => ['vehicle.pricing:w:own', 'vehicle.pricing', true, AccessLevel::Write];
+        yield 'own facet rule gives read on own resource' => ['vehicle.pricing:w:own', 'vehicle', true, AccessLevel::Read];
     }
 
     #[DataProvider('evaluations')]
@@ -61,6 +75,12 @@ final class AccessExpressionTest extends TestCase
         yield 'bad type' => ['ve hicle!:w'];
         yield 'duplicate' => ['vehicle:w vehicle:r'];
         yield 'too many parts' => ['vehicle:w:own:x'];
+        yield 'manage on a facet' => ['vehicle.pricing:m'];
+        yield 'facet of a facet' => ['vehicle.pricing.vat:w'];
+        yield 'facet of the wildcard' => ['*.pricing:w'];
+        yield 'facet of a reserved type' => ['@access.users:w'];
+        yield 'empty facet' => ['vehicle.:w'];
+        yield 'duplicate facet' => ['vehicle.pricing:w vehicle.pricing:r'];
     }
 
     #[DataProvider('invalidExpressions')]
@@ -68,6 +88,23 @@ final class AccessExpressionTest extends TestCase
     {
         $this->expectException(InvalidAccessExpression::class);
         AccessExpression::parse($expression);
+    }
+
+    public function testParentType(): void
+    {
+        self::assertSame('vehicle', AccessExpression::parentType('vehicle.pricing'));
+        self::assertNull(AccessExpression::parentType('vehicle'));
+        self::assertNull(AccessExpression::parentType('@access'));
+    }
+
+    public function testNamedTypesIncludeFacets(): void
+    {
+        self::assertSame(['vehicle', 'vehicle.pricing'], AccessExpression::parse('*:r vehicle:w vehicle.pricing:r')->namedTypes());
+    }
+
+    public function testCanonicalFormKeepsFacetsAfterTheirType(): void
+    {
+        self::assertSame('*:r vehicle:w vehicle.pricing:r', AccessExpression::parse('vehicle.pricing:r *:r vehicle:w')->toString());
     }
 
     public function testCanonicalForm(): void
@@ -94,6 +131,14 @@ final class AccessExpressionTest extends TestCase
         yield 'own rights within general rights' => ['user:w:own', 'user:w', true];
         yield 'own rights beyond' => ['user:m:own', 'user:w', false];
         yield 'empty' => ['', 'vehicle:r', true];
+        yield 'facet within its type' => ['vehicle.pricing:w', 'vehicle:w', true];
+        yield 'facet beyond its type' => ['vehicle.pricing:w', 'vehicle:r', false];
+        yield 'facet within the wildcard' => ['vehicle.pricing:w', '*:w', true];
+        yield 'facet held as such' => ['vehicle.pricing:w', 'vehicle.pricing:w', true];
+        yield 'other facet not held' => ['vehicle.media:w', 'vehicle.pricing:w', false];
+        yield 'whole type beyond a facet cap' => ['vehicle:w', 'vehicle:w vehicle.pricing:r', false];
+        yield 'reading the type reads facets not held' => ['vehicle:r', 'vehicle.pricing:w', false];
+        yield 'unnamed facets follow the type' => ['vehicle:w vehicle.pricing:r', 'vehicle:w', true];
     }
 
     #[DataProvider('delegations')]
