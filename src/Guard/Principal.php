@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GuillaumeTissier\ResourceGuard\Guard;
 
 use GuillaumeTissier\ResourceGuard\Access\AccessControlList;
+use GuillaumeTissier\ResourceGuard\Access\AccessExpression;
 use GuillaumeTissier\ResourceGuard\Access\AccessLevel;
 use GuillaumeTissier\ResourceGuard\Token\AccessToken;
 use GuillaumeTissier\ResourceGuard\Token\Impersonation;
@@ -90,5 +91,26 @@ final readonly class Principal
     public function can(string $resourceType, AccessLevel $required, string $domainPath, ?string $ownerId = null): bool
     {
         return $this->accessLevel($resourceType, $domainPath, $ownerId)->includes($required);
+    }
+
+    /**
+     * The facets of $resourceType on which the user lacks $required, e.g. before applying a partial update:
+     *
+     *     // The API maps its fields to facets: price => pricing, photos => media...
+     *     $denied = $principal->deniedFacets('vehicle', ['pricing', 'media'], AccessLevel::Write, $vehicle->domainPath);
+     *     if ([] !== $denied) { // 403, naming the fields of the denied facets
+     *
+     * A level held on the whole type covers its facets, unless a facet rule says otherwise.
+     *
+     * @param list<string> $facets facet names, without the type ("pricing")
+     *
+     * @return list<string> the denied facet names, in the given order
+     */
+    public function deniedFacets(string $resourceType, array $facets, AccessLevel $required, string $domainPath, ?string $ownerId = null): array
+    {
+        return array_values(array_filter(
+            $facets,
+            fn (string $facet): bool => !$this->can($resourceType.AccessExpression::FACET_SEPARATOR.$facet, $required, $domainPath, $ownerId),
+        ));
     }
 }

@@ -163,6 +163,23 @@ Rules of evaluation:
 | `*:r invoice:-` | everything readable except invoices |
 | `user:r user:w:own` | `:own` applies to resources owned by the caller (`ownerId` = the token `sub`) |
 | `@impersonate:r` | reserved `@` types are never covered by `*` |
+| `vehicle.pricing:w` | a **facet**: one part of a resource (here its prices). Grants write on that part, and read on the vehicle itself |
+| `vehicle:w vehicle.pricing:r` | the most specific rule wins: facet, then type, then `*`. Everything writable but the prices |
+| `vehicle:r vehicle.media:w` | read the vehicles, change their photos only |
+
+Facets take `-`, `r` or `w` (creating and deleting concern the whole resource), one level deep
+(`vehicle.pricing`, never `vehicle.pricing.vat`). Which fields belong to which facet is decided by your API:
+the auth server only knows the facet names. Before a partial update, check the facets of the fields sent:
+
+```php
+// Fields of the request => facets of the vehicle, as defined by this API.
+$facets = array_unique(array_map(fn (string $field): string => self::FACET_OF_FIELD[$field], array_keys($changes)));
+
+$denied = $principal->deniedFacets('vehicle', $facets, AccessLevel::Write, $vehicle->domainPath);
+if ([] !== $denied) {
+    // 403, naming the denied facets (or their fields): never ignore them silently.
+}
+```
 
 - Several entries covering a domain: the highest level wins.
 - Nothing ever applies outside the user's domain subtree, even if an entry claims so (fail closed).
